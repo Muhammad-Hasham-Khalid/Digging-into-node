@@ -6,7 +6,7 @@ var util = require('util');
 var path = require('path');
 var fs = require('fs');
 
-var getStdin = require('get-stdin');
+// var getStdin = require('get-stdin');
 
 var args = require('minimist')(process.argv.slice(2),{
     boolean: [ "help", "in" ],
@@ -17,8 +17,7 @@ var args = require('minimist')(process.argv.slice(2),{
 // BASE_PATH=files/ ./ex1.js --file=hello.txt
 
 var BASE_PATH = path.resolve(
-    process.env.BASE_PATH ||
-    __dirname
+    process.env.BASE_PATH || __dirname
 )
 
 if (process.env.HELLO) {
@@ -30,19 +29,11 @@ if (args.help) {
     printHelp();
 }
 else if (args.in || args._.includes("-")) {
-    getStdin().then(processFile).catch(error);
+    processFile(process.stdin);
 }
 else if (args.file) {
-    fs.readFile(path.join(BASE_PATH, args.file), function onContents(err, contents){
-        if (err) {
-            error(err.toString());
-        }
-        else {
-            // contents = contents.toString().toUpperCase();
-            // process.stdout.write(contents);
-            processFile(contents.toString());
-        }
-    });
+    let stream = fs.createReadStream(path.join(BASE_PATH, args.file));
+    processFile(stream);
 }
 else {
     error("Incorrect usage", true);
