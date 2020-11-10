@@ -18,6 +18,8 @@ var args = require('minimist')(process.argv.slice(2),{
     string: [ "file" ]
 });
 
+processFile = CAF(processFile);
+
 // BASE_PATH=files/ ./ex1.js --file=hello.txt
 
 function streamComplete(stream) {
@@ -41,12 +43,17 @@ if (args.help) {
     printHelp();
 }
 else if (args.in || args._.includes("-")) {
-    processFile(process.stdin)
+    let tooLong = CAF.timeout(13, "Took too long!"); // 3 milliseconds cancellation token
+    
+    processFile(tooLong, process.stdin)
     .catch(error);
 }
 else if (args.file) {
     let stream = fs.createReadStream(path.join(BASE_PATH, args.file));
-    processFile(stream).then(function() {
+
+    let tooLong = CAF.timeout(13, "Took too long!"); // 3 milliseconds cancellation token
+
+    processFile(tooLong, stream).then(function() {
         console.log("Complete!");
     }).catch(error);
 }
@@ -56,7 +63,8 @@ else {
 
 // ***********************
 
-async function processFile(inStream) {
+// converting processFile into a generator
+function *processFile(signal, inStream) {
     var outStream = inStream;
 
     if (args.uncompress) {
@@ -88,7 +96,13 @@ async function processFile(inStream) {
     }
 
     outStream.pipe(targetStream);
-    await streamComplete(outStream);
+
+    signal.pr.catch(function () {
+        outStream.unpipe(targetStream);
+        outStream.destroy();
+    });
+
+    yield streamComplete(outStream);
 }
 
 function error(msg, includeHelp = false) {
