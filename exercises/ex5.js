@@ -4,10 +4,10 @@
 
 var util = require("util");
 var path = require("path");
-// var http = require("http");
+var http = require("http");
 
 var sqlite3 = require("sqlite3");
-// var staticAlias = require("node-static-alias");
+var staticAlias = require("node-static-alias");
 
 
 // ************************************
@@ -35,14 +35,34 @@ var SQL3 = {
 	exec: util.promisify(myDB.exec.bind(myDB)),
 };
 
-// var fileServer = new staticAlias.Server(WEB_PATH,{
-// 	cache: 100,
-// 	serverInfo: "Node Workshop: ex5",
-// 	alias: [
-// 	],
-// });
+var fileServer = new staticAlias.Server(WEB_PATH,{
+	cache: 100,
+	serverInfo: "Node Workshop: ex5",
+	alias: [
+		{
+			match: /^\/(?:index\/?)?(?:[?#].*$)?$/,
+			serve: "index.html",
+			force: true,
+		},
+		{
+			match: /^\/js\/.+$/,
+			serve: "<% absPath %>",
+			force: true,
+		},
+		{
+			match: /^\/(?:[\w\d]+)(?:[\/?#].*$)?$/,
+			serve: function onMatch(params) {
+				return `${params.basename}.html`;
+			},
+		},
+		{
+			match: /[^]/,
+			serve: "404.html",
+		},
+	],
+});
 
-// var httpserv = http.createServer(handleRequest);
+var httpserv = http.createServer(handleRequest);
 
 main();
 
@@ -50,7 +70,24 @@ main();
 // ************************************
 
 function main() {
-	// console.log(`Listening on http://localhost:${HTTP_PORT}...`);
+	httpserv.listen(HTTP_PORT)
+	console.log(`Listening on http://localhost:${HTTP_PORT}...`);
+}
+
+async function handleRequest(req, res) {
+	if (req.url == '/get-records') {
+		await delay(1000);
+
+		let records = await getAllRecords();
+		
+		res.writeHead(200, { 
+			'Content-Type': 'application/json', 'Cache-Control': 'no-cache' 
+		});
+		res.end(JSON.stringify(records));
+
+	} else {
+		fileServer.serve(req, res);
+	}
 }
 
 // *************************
